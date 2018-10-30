@@ -1,0 +1,320 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  PinpointAppId:
+    Type: String
+    Description: "Pinpoint client application ID created using Amplify CLI"
+Resources:
+  FirehoseDeliveryRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "firehose.amazonaws.com"
+                - "s3.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: "FirehoseESPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - 's3:AbortMultipartUpload'
+                  - 's3:GetBucketLocation'
+                  - 's3:GetObject'
+                  - 's3:ListBucket'
+                  - 's3:ListBucketMultipartUploads'
+                  - 's3:PutObject'
+                Resource:
+                  - !Join
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - !Ref S3Bucket
+                  - !Join
+                    - ''
+                    - - 'arn:aws:s3:::'
+                      - !Ref S3Bucket
+                      - '/*'
+              - Effect: "Allow"
+                Action:
+                  - "es:DescribeElasticsearchDomain"
+                  - "es:DescribeElasticsearchDomains"
+                  - "es:DescribeElasticsearchDomainConfig"
+                  - "es:ESHttpPost"
+                  - "es:ESHttpPut"
+                Resource:
+                  - !Join
+                    - ''
+                    - - 'arn:aws:es'
+                      - ':'
+                      - !Ref "AWS::Region"
+                      - ':'
+                      - !Ref "AWS::AccountId"
+                      - ':domain/'
+                      - !Ref ElasticsearchDomain
+                  - !Join
+                    - ''
+                    - - 'arn:aws:es'
+                      - ':'
+                      - !Ref "AWS::Region"
+                      - ':'
+                      - !Ref "AWS::AccountId"
+                      - ':domain/'
+                      - !Ref ElasticsearchDomain
+                      - '/*'
+  LambdaRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: "LambdaPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "kinesis:Get*"
+                  - "kinesis:List*"
+                  - "kinesis:Describe*"
+                  - "mobiletargeting:*"
+                  - "logs:*"
+                  - "comprehend:*"
+                Resource: '*'
+  lambdaApiGatewayInvokePost:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !GetAtt "LambdaFunctionPost.Arn"
+      Principal: "apigateway.amazonaws.com"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PageUpdatesAPI}/*/POST/"
+  lambdaApiGatewayInvokeGet:
+    Type: "AWS::Lambda::Permission"
+    Properties:
+      Action: "lambda:InvokeFunction"
+      FunctionName: !GetAtt "LambdaFunctionGet.Arn"
+      Principal: "apigateway.amazonaws.com"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${PageUpdatesAPI}/*/GET/"
+  KinesisStream:
+    Type: 'AWS::Kinesis::Stream'
+    Properties:
+      Name: 'page_updates'
+      ShardCount: 1
+  ElasticsearchDomain:
+    Type: 'AWS::Elasticsearch::Domain'
+    Properties:
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 100
+        VolumeType: 'standard'
+      DomainName: 'page-updates'
+      ElasticsearchVersion: '6.2'
+      AccessPolicies:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: '*'
+          Action:
+          - 'es:*'
+          Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/page-updates/*'
+  KinesisFirehose:
+    Type: 'AWS::KinesisFirehose::DeliveryStream'
+    Properties:
+      ElasticsearchDestinationConfiguration:
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 1
+        DomainARN: !GetAtt ElasticsearchDomain.DomainArn
+        IndexName: 'page-updates'
+        IndexRotationPeriod: 'NoRotation'
+        RetryOptions:
+          DurationInSeconds: 300
+        RoleARN: !GetAtt FirehoseDeliveryRole.Arn
+        S3BackupMode: 'AllDocuments'
+        S3Configuration:
+          BucketARN: !GetAtt S3Bucket.Arn
+          CompressionFormat: 'ZIP'
+          BufferingHints:
+            IntervalInSeconds: 60
+            SizeInMBs: 1
+          RoleARN: !GetAtt FirehoseDeliveryRole.Arn
+        TypeName: 'updatestream'
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+  LambdaFunctionPost:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Environment:
+        Variables:
+          'PinpointAppId': !Ref PinpointAppId
+      Code:
+        ZipFile: |
+          import base64
+          import json
+          import uuid
+          import datetime
+          import os
+          import boto3
+
+          print('Loading function')
+          kinesisclient = boto3.client('kinesis', region_name='us-east-1')
+          client = boto3.client('comprehend')
+          pinpointclient = boto3.client('pinpoint')
+
+
+          def lambda_handler(event, context):
+              '''Respond to Facebook page event webhook with challenge
+              '''
+              print("Received event: " + str(event))
+              app_id = os.environ['app_id']
+              body = json.loads(event['body'])
+              userId = body['entry'][0]['changes'][0]['value']['from']['name'].replace(" ", "")
+              post_content = body['entry'][0]['changes'][0]['value']['message']
+              
+              try: 
+                  pinpointclient.get_endpoint(ApplicationId=app_id, EndpointId=userId)
+              except Exception as e:
+                  print("Error occurred: ", e)
+              else:
+                  # if endpoint exists, do sentiment analysis, send push, update endpoint
+                  response = client.detect_sentiment(
+                      Text=post_content,
+                      LanguageCode='en'
+                  )
+                  print(response)
+                  
+                  if response['Sentiment'] == 'POSITIVE':
+                      pinpointresponse = pinpointclient.send_messages(
+                          ApplicationId=app_id,
+                          MessageRequest={
+                              'Endpoints': {
+                                  userId: {}
+                              },
+                              'MessageConfiguration': {
+                                  'GCMMessage': {
+                                      'Action': 'OPEN_APP',
+                                      'Body': 'Thanks for the feedback! Fill out this 2-question survey and get free gear https://tinyurl.com/SomeSurveyURL',
+                                      'Title': 'Thank you very much!'
+                                  }
+                              }
+                          }
+                      )
+                      print(pinpointresponse)
+                      endpointresponse = pinpointclient.update_endpoint(
+                          ApplicationId=app_id,
+                          EndpointId=userId,
+                          EndpointRequest={
+                              'EffectiveDate': datetime.datetime.now().isoformat(),
+                              'RequestId': str(uuid.uuid4()),
+                              'User': {
+                                  'UserAttributes': {
+                                      'Sentiment': [
+                                          'Positive',
+                                      ]
+                                  }
+                              }
+                          }
+                      )
+                      print(endpointresponse)
+              
+              response = kinesisclient.put_record(
+                          StreamName='page_updates',
+                          Data=event['body'],
+                          PartitionKey=str(uuid.uuid4())
+              )
+      Handler: 'index.lambda_handler'
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: 'python3.6'
+  LambdaFunctionGet:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import os
+
+          print('Loading function')
+
+
+          def respond(err, res=None):
+              return {
+                  'statusCode': '400' if err else '200',
+                  'body': err if err else json.dumps(res),
+                  'headers': {
+                      'Content-Type': 'application/json',
+                  },
+              }
+
+
+          def lambda_handler(event, context):
+              '''Respond to Facebook page event webhook with challenge
+              '''
+              print("Received event: " + json.dumps(event, indent=2))
+              challenge = int(event['queryStringParameters']['hub.challenge'])
+              verify_token = event['queryStringParameters']['hub.verify_token']
+              try:
+                  if os.environ['verify_token'] == verify_token:
+                      return respond(None, challenge)
+                  else:
+                      return respond(ValueError('Token verification failed.'))
+              except Exception as e:
+                  return respond(ValueError('Error received: "{}"'.format(e)))
+      Handler: 'index.lambda_handler'
+      Role: !GetAtt LambdaRole.Arn
+      Runtime: 'python3.6'
+  PageUpdatesAPI:
+    Type: "AWS::ApiGateway::RestApi"
+    Properties:
+      Name: "PageUpdatesAPI"
+      FailOnWarnings: "true"
+  apiGatewayPostMethod:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      AuthorizationType: "NONE"
+      HttpMethod: "POST"
+      Integration:
+        IntegrationHttpMethod: "POST"
+        Type: "AWS_PROXY"
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaArnPost}/invocations"
+          - lambdaArnPost: !GetAtt "LambdaFunctionPost.Arn"
+      ResourceId: !GetAtt "PageUpdatesAPI.RootResourceId"
+      RestApiId: !Ref "PageUpdatesAPI"
+  apiGatewayGetMethod:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      AuthorizationType: "NONE"
+      HttpMethod: "GET"
+      Integration:
+        IntegrationHttpMethod: "GET"
+        Type: "AWS_PROXY"
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaArnGet}/invocations"
+          - lambdaArnGet: !GetAtt "LambdaFunctionGet.Arn"
+      ResourceId: !GetAtt "PageUpdatesAPI.RootResourceId"
+      RestApiId: !Ref "PageUpdatesAPI"
+  apiGatewayDeployment:
+    Type: "AWS::ApiGateway::Deployment"
+    DependsOn:
+      - "apiGatewayGetMethod"
+      - "apiGatewayPostMethod"
+    Properties:
+      RestApiId: !Ref "PageUpdatesAPI"
+      StageName: "dev"
+Outputs:
+  apiGatewayInvokeURL:
+    Value: !Sub "https://${PageUpdatesAPI}.execute-api.${AWS::Region}.amazonaws.com/dev"
