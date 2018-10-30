@@ -18,8 +18,8 @@ Imagine you are a brand with a large web and mobile presence. You want to monito
 
 ## Steps
 
-1. Clone this repo with `git clone https://github.com/mgdombrowski/reinvent-workshop/`
-2. Change into your repo directory in the terminal with `cd reinvent-workshop`
+1. Clone this repo with `git clone https://github.com/mgdombrowski/mob314`
+2. Change into your repo directory in the terminal with `cd mob314`.
 3. Install dependencies with `npm install`
 4. Configure the Amplify CLI with `amplify configure`
 5. Initialize your Amplify project with `amplify init`. Follow the prompts and choose the selections shown below. You can substitute in whatever text editor you'll be using: 
