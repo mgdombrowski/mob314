@@ -241,6 +241,9 @@ Resources:
   LambdaFunctionGet:
     Type: 'AWS::Lambda::Function'
     Properties:
+      Environment:
+        Variables:
+          'verify_token': "ThisIsAToken"
       Code:
         ZipFile: |
           import boto3
