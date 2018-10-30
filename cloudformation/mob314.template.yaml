@@ -86,9 +86,7 @@ Resources:
             Statement:
               - Effect: "Allow"
                 Action:
-                  - "kinesis:Get*"
-                  - "kinesis:List*"
-                  - "kinesis:Describe*"
+                  - "kinesis:*"
                   - "mobiletargeting:*"
                   - "logs:*"
                   - "comprehend:*"
@@ -133,6 +131,10 @@ Resources:
   KinesisFirehose:
     Type: 'AWS::KinesisFirehose::DeliveryStream'
     Properties:
+      DeliveryStreamType: 'KinesisStreamAsSource'
+      KinesisStreamSourceConfiguration: 
+                KinesisStreamARN: !GetAtt KinesisStream.Arn
+                RoleARN: !GetAtt FirehoseDeliveryRole.Arn
       ElasticsearchDestinationConfiguration:
         BufferingHints:
           IntervalInSeconds: 60
@@ -179,11 +181,17 @@ Resources:
               '''Respond to Facebook page event webhook with challenge
               '''
               print("Received event: " + str(event))
-              app_id = os.environ['app_id']
+              app_id = os.environ['PinpointAppId']
               body = json.loads(event['body'])
               userId = body['entry'][0]['changes'][0]['value']['from']['name'].replace(" ", "")
               post_content = body['entry'][0]['changes'][0]['value']['message']
               
+              response = kinesisclient.put_record(
+                          StreamName='page_updates',
+                          Data=event['body'],
+                          PartitionKey=str(uuid.uuid4())
+              )
+
               try: 
                   pinpointclient.get_endpoint(ApplicationId=app_id, EndpointId=userId)
               except Exception as e:
@@ -229,12 +237,6 @@ Resources:
                           }
                       )
                       print(endpointresponse)
-              
-              response = kinesisclient.put_record(
-                          StreamName='page_updates',
-                          Data=event['body'],
-                          PartitionKey=str(uuid.uuid4())
-              )
       Handler: 'index.lambda_handler'
       Role: !GetAtt LambdaRole.Arn
       Runtime: 'python3.6'
@@ -303,7 +305,7 @@ Resources:
       AuthorizationType: "NONE"
       HttpMethod: "GET"
       Integration:
-        IntegrationHttpMethod: "GET"
+        IntegrationHttpMethod: "POST"
         Type: "AWS_PROXY"
         Uri: !Sub
           - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaArnGet}/invocations"

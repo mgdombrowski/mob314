@@ -15,11 +15,17 @@ def lambda_handler(event, context):
     '''Respond to Facebook page event webhook with challenge
     '''
     print("Received event: " + str(event))
-    app_id = os.environ['app_id']
+    app_id = os.environ['PinpointAppId']
     body = json.loads(event['body'])
     userId = body['entry'][0]['changes'][0]['value']['from']['name'].replace(" ", "")
     post_content = body['entry'][0]['changes'][0]['value']['message']
     
+    response = kinesisclient.put_record(
+                StreamName='page_updates',
+                Data=event['body'],
+                PartitionKey=str(uuid.uuid4())
+    )
+
     try: 
         pinpointclient.get_endpoint(ApplicationId=app_id, EndpointId=userId)
     except Exception as e:
@@ -65,9 +71,3 @@ def lambda_handler(event, context):
                 }
             )
             print(endpointresponse)
-    
-    response = kinesisclient.put_record(
-                StreamName='page_updates',
-                Data=event['body'],
-                PartitionKey=str(uuid.uuid4())
-    )

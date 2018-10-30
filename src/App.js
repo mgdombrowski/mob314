@@ -38,7 +38,7 @@ const App = () => (
       <h1 className="App-title">Welcome to the push-notification demo !</h1>
     </header>
     <div>
-    <FacebookLogin appId="your_app_id_here"
+    <FacebookLogin appId="your_app_id"
                    autoLoad={true}
                    fields="name,email,picture"
                    onClick={componentClicked}

@@ -8,7 +8,7 @@ var pinpoint = new AWS.Pinpoint();
 
 export const initializeFirebase = () => {
   firebase.initializeApp({
-    messagingSenderId: 'your_sender_id_here' 
+    messagingSenderId: 'your_sender_id' 
   });
 }
 
