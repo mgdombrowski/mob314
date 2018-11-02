@@ -4,6 +4,9 @@ Perform Social Media Sentiment Analysis with Pinpoint and Comprehend
 ## Use Case
 Imagine you are a brand with a large web and mobile presence. You want to monitor the conversation around your brand on social media and message your promoters/influencers and detractors across multiple channels. AWS and Pinpoint provide a great foundation for doing so easily and at massive scale.
 
+## Demo
+![Screenshot](images/pinpointdemo.gif)
+
 ## Architecture
 ![Screenshot](images/arch.png)
 

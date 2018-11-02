@@ -24,6 +24,11 @@ Resources:
             Statement:
               - Effect: "Allow"
                 Action:
+                  - 'kinesis:*'
+                Resource:
+                  - !GetAtt KinesisStream.Arn
+              - Effect: "Allow"
+                Action:
                   - 's3:AbortMultipartUpload'
                   - 's3:GetBucketLocation'
                   - 's3:GetObject'
