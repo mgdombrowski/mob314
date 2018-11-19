@@ -68,8 +68,9 @@ Now minimize the window to ensure you get the push notification while the app is
 
 ## Bonus
 1. How would you add hosting to publish this local site as a static page on S3/CloudFront?
-2. What would this solution look like using Twitter instead of Facebook?
-3. How would you implement this solution as a native mobile app instead of a PWA?
+2. Install this PWA on an Android device or emulator and test out push notification and offline capability.
+3. What would this solution look like using Twitter APIs instead of Facebook?
+4. How would you implement this solution as a native mobile app instead of a PWA?
 
 ## Cleanup
 
