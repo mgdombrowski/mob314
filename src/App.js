@@ -11,7 +11,9 @@ var userName;
 const responseFacebook = (response) => {
   console.log(response);
   
-  userName = response.name.replace(/\s/g, '');
+  //userName = response.name.replace(/\s/g, '');
+  //hardcode username for workshop due to Facebook API update 3.2
+  userName = 'TestPage';
 
   Amplify.configure({
     Auth: {
@@ -20,7 +22,9 @@ const responseFacebook = (response) => {
     },
     Analytics:
     {
-      endpointId: response.name,
+      // endpointId: response.name,
+      //hardcode username for workshop due to Facebook API update 3.2
+      endpointId: 'TestPage',
       appId: aws_exports.aws_mobile_analytics_app_id,
       region: aws_exports.aws_project_region,
     }
