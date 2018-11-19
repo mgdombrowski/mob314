@@ -58,7 +58,8 @@ C:\Program Files (x86)\Google\Chrome\Application\chrome.exe --ignore-certificate
 19. Login with Facebook with the first button then click the second button to register for push notifications. You can open the Chrome Javascript console to see the responses from Facebook and Firebase as your authenticate. 
 ![Screenshot](images/app.png)
 Now minimize the window to ensure you get the push notification while the app is in the background.
-20. Test the pipeline by pressing the *Test* button in your Facebook app's Webhook settings. You should get a browser push notification within a few seconds thanking you for feedback and asking if you want to take a survey.
+20. Test the pipeline by pressing the *Test* button in your Facebook app's Webhook settings next to the *feed* . You should get a browser push notification within a few seconds thanking you for feedback and asking if you want to take a survey.
+![Screenshot](images/test.png)
 21. Follow your Facebook post through the pipeline:
 - Navigate to your [Lambda function](https://console.aws.amazon.com/lambda/home?region=us-east-1#/functions). Click on the *Monitoring* tab, then *View Logs in CloudWatch*. Drill into the latest Log Stream and review the Lambda execution logs. How positive was your sentiment score?
 - Navigate to the [S3 console](https://s3.console.aws.amazon.com/s3/home?region=us-east-1) and see the object that was created by your post.
