@@ -38,7 +38,7 @@ def lambda_handler(event, context):
         )
         print(response)
         
-        if response['Sentiment'] == 'POSITIVE':
+        if response['Sentiment'] == 'NEUTRAL':
             pinpointresponse = pinpointclient.send_messages(
                 ApplicationId=app_id,
                 MessageRequest={
@@ -64,7 +64,7 @@ def lambda_handler(event, context):
                     'User': {
                         'UserAttributes': {
                             'Sentiment': [
-                                'Positive',
+                                'Neutral',
                             ]
                         }
                     }

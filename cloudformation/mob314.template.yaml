@@ -209,7 +209,7 @@ Resources:
                   )
                   print(response)
                   
-                  if response['Sentiment'] == 'POSITIVE':
+                  if response['Sentiment'] == 'NEUTRAL':
                       pinpointresponse = pinpointclient.send_messages(
                           ApplicationId=app_id,
                           MessageRequest={
@@ -235,7 +235,7 @@ Resources:
                               'User': {
                                   'UserAttributes': {
                                       'Sentiment': [
-                                          'Positive',
+                                          'Neutral',
                                       ]
                                   }
                               }
