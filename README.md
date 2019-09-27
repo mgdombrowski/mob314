@@ -1,6 +1,9 @@
 # re:Invent Workshop MOB314
 Perform Social Media Sentiment Analysis with Pinpoint and Comprehend
 
+## Video demo at AWS re:Invent 2018
+[![Alt text](https://img.youtube.com/vi/0SVtt5wz_rE/0.jpg)](https://www.youtube.com/watch?v=0SVtt5wz_rE)
+
 ## Use Case
 Imagine you are a brand with a large web and mobile presence. You want to monitor the conversation around your brand on social media and message your promoters/influencers and detractors across multiple channels. AWS and Pinpoint provide a great foundation for doing so easily and at massive scale.
 
