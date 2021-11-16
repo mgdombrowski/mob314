@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "aws-amplify": "^1.1.6",
-    "aws-sdk": "^2.334.0",
+    "aws-sdk": "^2.814.0",
     "firebase": "^5.0.4",
     "react": "^16.5.2",
     "react-dom": "^16.5.2",
